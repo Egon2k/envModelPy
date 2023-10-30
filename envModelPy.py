@@ -72,7 +72,39 @@ class Sprayer:
             
         m = result[0]
         c = result[1]
-       
+
+        # cycle with hitch_new as center (hitchX, hitchY) and radius diagSprayer
+        # formula: (x - x0)^2 + (y - y0)^2 = r^2
+        x = [0,0]
+        x[0] = (self.hitch[0] + math.sqrt(- c**2 - 2 * c * self.hitch[0] * m + 2 * c * self.hitch[1] - self.hitch[0]**2 * m**2 + 2 * self.hitch[0] * self.hitch[1] * m - self.hitch[1]**2 + m**2 * diag**2 + diag**2) - c * m + self.hitch[1] * m)/(m**2 + 1);
+        x[1] = (self.hitch[0] - math.sqrt(- c**2 - 2 * c * self.hitch[0] * m + 2 * c * self.hitch[1] - self.hitch[0]**2 * m**2 + 2 * self.hitch[0] * self.hitch[1] * m - self.hitch[1]**2 + m**2 * diag**2 + diag**2) - c * m + self.hitch[1] * m)/(m**2 + 1);
+
+        y = [0,0]
+        y[0] = (c + self.hitch[0] * m + self.hitch[1] * m**2 + m * math.sqrt(- c**2 - 2 * c * self.hitch[0] * m + 2 * c * self.hitch[1] - self.hitch[0]**2 * m**2 + 2 * self.hitch[0] * self.hitch[1] * m - self.hitch[1]**2 + m**2 * diag**2 + diag**2)) / (m**2 + 1)
+        y[1] = (c + self.hitch[0] * m + self.hitch[1] * m**2 - m * math.sqrt(- c**2 - 2 * c * self.hitch[0] * m + 2 * c * self.hitch[1] - self.hitch[0]**2 * m**2 + 2 * self.hitch[0] * self.hitch[1] * m - self.hitch[1]**2 + m**2 * diag**2 + diag**2)) / (m**2 + 1)
+
+        new_axle = [0,0]
+        if (math.sqrt(abs(self.axle[0] - x[0])**2 + abs(self.axle[1] - y[0])**2) < math.sqrt(abs(self.axle[0] - x[1])**2 + abs(self.axle[1] - y[1])**2)):
+            new_axle[0] = x[0]
+            new_axle[1] = y[0]
+        else:
+            new_axle[0] = x[1]
+            new_axle[1] = y[1]
+
+        diag_angle = math.atan2((new_hitch[1] - new_axle[1]), (new_hitch[0] - new_axle[0]))
+
+        new_kink = [0,0]
+        new_kink[0] = self.hitch[0] - L2 * math.cos(diag_angle - tau1)
+        new_kink[1] = self.hitch[1] - L2 * math.sin(diag_angle - tau1)
+
+        if L3 == 0: # wheelsteer
+            new_psi = diag_angle
+        else:
+            new_psi = math.atan((new_axle[1] - new_kink[1]) / (new_axle[0] - new_kink[0]))
+
+        d_psi = (self.psi - new_psi) % math.pi
+        ds = math.sqrt((self.axle[0] - new_axle[0])**2 + (self.axle[1] - new_axle[1])**2)
+
 
     def print(self):
         print(self.hitch)
