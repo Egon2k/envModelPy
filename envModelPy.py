@@ -1,5 +1,6 @@
 import matplotlib.pyplot as plt
-import math 
+import numpy as np
+import math
 
 H = 0.4
 L1 = 5
@@ -43,24 +44,44 @@ class Tractor:
         print(self.rear)
         print(self.hitch)
 
-class Aeon:
+class Sprayer:
     def __init__(self, hitch, psi = 0):
         self.psi   = psi
         self.hitch = hitch
-        self.rear  = [self.hitch[0] + L2 * math.cos(self.psi),
+        self.kink  = [self.hitch[0] + L2 * math.cos(self.psi),
                       self.hitch[1] + L2 * math.sin(self.psi)]
+        self.axle  = [0,0]
 
-    def step(self, steering_angle, hitch):
+    def step(self, beta, hitch):
         new_hitch = hitch
-        new_rear  = []
+        new_kink  = []
+        new_axle  = []
+
+        diag = math.sqrt(L2**2 + L3**2 - 2 * L2 * L3 * math.cos(math.pi - beta))
+        tau1 =  math.asin(L3 * math.sin(math.pi - beta) / diag)
+        tau2 =  math.asin(L2 * math.sin(math.pi - beta) / diag)
+
+        if L3 == 0: # wheelsteer
+            A = np.array([[self.kink[0], 1], [self.kink[0] + math.cos(self.psi + beta), 1]])
+            b = np.array([self.kink[1], self.kink[1] + math.sin(self.psi + beta)])
+        else:
+            A = np.array([[self.kink[0], 1], [self.axle[0], 1]])
+            b = np.array([self.kink[1], self.axle[1]])
+
+        result = np.linalg.solve(A,b)
+            
+        m = result[0]
+        c = result[1]
+       
 
     def print(self):
         print(self.hitch)
-        print(self.rear)
+        print(self.kink)
+        print(self.axle)
 
 if __name__ == "__main__":
     t = Tractor(0.01)
-    s = Aeon(t.hitch)
+    s = Sprayer(t.hitch)
     t.print()
     s.print()
     t.step(0 * math.pi / 180, 3)
