@@ -4,8 +4,15 @@ import math
 
 H = 0.4
 L1 = 5
-L2 = 4
-L3 = 3
+L2 = 3
+L3 = 2
+
+n_steps = 1000
+n_steps_shown = 10
+zoom = 20
+
+def r(val):
+    return round(val, 10)
 
 
 class Tractor:
@@ -17,56 +24,60 @@ class Tractor:
         self.hitch = [-H - L1 , 0]
         
 
-    def step(self, steering_angle, v):
+    def step(self, v, steering_angle = 0):
         ds = v * self.dt
-        d_psi = math.asin(ds * math.sin(math.pi - steering_angle) / L1);
+        d_psi = math.asin(ds * math.sin(math.pi - steering_angle) / L1)
 
-        self.psi += d_psi
+        new_psi = self.psi + d_psi
 
-        if self.psi > math.pi:
-            self.psi -= 2 * math.pi
-        elif self.psi < -math.pi:
-            self.psi += 2 * math.pi
+        if new_psi > math.pi:
+            new_psi -= 2 * math.pi
+        elif new_psi < -math.pi:
+            new_psi += 2 * math.pi
 
-        new_front = [self.front[0] + ds * math.cos(steering_angle),
-                     self.front[1] + ds * math.sin(steering_angle)]
-        new_rear  = [new_front[0] - L1 * math.cos(self.psi), 
-                     new_front[1] - L1 * math.sin(self.psi)]
-        new_hitch = [new_front[0] - (L1 + H) * math.cos(self.psi), 
-                     new_front[1] - (L1 + H) * math.sin(self.psi)]
+        new_front = [self.front[0] + ds * math.cos(steering_angle + self.psi),
+                     self.front[1] + ds * math.sin(steering_angle + self.psi)]
+        new_rear  = [new_front[0] - L1 * math.cos(new_psi), 
+                     new_front[1] - L1 * math.sin(new_psi)]
+        new_hitch = [new_front[0] - (L1 + H) * math.cos(new_psi), 
+                     new_front[1] - (L1 + H) * math.sin(new_psi)]
         
+        self.psi = new_psi
         self.front = new_front
         self.rear = new_rear
         self.hitch = new_hitch
 
     def print(self):
-        print(self.front)
-        print(self.rear)
-        print(self.hitch)
+        print("Tractor")
+        print(f'front: {r(self.front[0])}, {r(self.front[1])}')
+        print(f'rear: {r(self.rear[0])}, {r(self.rear[1])}')
+        print(f'hitch: {r(self.hitch[0])}, {r(self.hitch[1])}')
 
-class Sprayer:
-    def __init__(self, hitch, psi = 0):
+class Trailer:
+    def __init__(self, hitch, psi = 0, beta = 0):
         self.psi   = psi
         self.hitch = hitch
-        self.kink  = [self.hitch[0] + L2 * math.cos(self.psi),
-                      self.hitch[1] + L2 * math.sin(self.psi)]
-        self.axle  = [0,0]
+        self.pivot = [self.hitch[0] - L2 * math.cos(self.psi),
+                      self.hitch[1] - L2 * math.sin(self.psi)]
+        self.axle  = [self.pivot[0] - L3 * math.cos(self.psi + beta),
+                      self.pivot[1] - L3 * math.sin(self.psi + beta)]
 
-    def step(self, beta, hitch):
+    def step(self, hitch, beta = 0):
         new_hitch = hitch
-        new_kink  = []
+        new_pivot = []
         new_axle  = []
 
+        # diag = distance between hitch and axle (for L3 = 0 => diag = L2)
         diag = math.sqrt(L2**2 + L3**2 - 2 * L2 * L3 * math.cos(math.pi - beta))
         tau1 =  math.asin(L3 * math.sin(math.pi - beta) / diag)
         tau2 =  math.asin(L2 * math.sin(math.pi - beta) / diag)
 
         if L3 == 0: # wheelsteer
-            A = np.array([[self.kink[0], 1], [self.kink[0] + math.cos(self.psi + beta), 1]])
-            b = np.array([self.kink[1], self.kink[1] + math.sin(self.psi + beta)])
+            A = np.array([[self.pivot[0], 1], [self.pivot[0] + math.cos(self.psi + beta), 1]])
+            b = np.array([self.pivot[1], self.pivot[1] + math.sin(self.psi + beta)])
         else:
-            A = np.array([[self.kink[0], 1], [self.axle[0], 1]])
-            b = np.array([self.kink[1], self.axle[1]])
+            A = np.array([[self.pivot[0], 1], [self.axle[0], 1]])
+            b = np.array([self.pivot[1], self.axle[1]])
 
         result = np.linalg.solve(A,b)
             
@@ -93,31 +104,53 @@ class Sprayer:
 
         diag_angle = math.atan2((new_hitch[1] - new_axle[1]), (new_hitch[0] - new_axle[0]))
 
-        new_kink = [0,0]
-        new_kink[0] = self.hitch[0] - L2 * math.cos(diag_angle - tau1)
-        new_kink[1] = self.hitch[1] - L2 * math.sin(diag_angle - tau1)
+        new_pivot = [0,0]
+        new_pivot[0] = self.hitch[0] - L2 * math.cos(diag_angle - tau1)
+        new_pivot[1] = self.hitch[1] - L2 * math.sin(diag_angle - tau1)
 
         if L3 == 0: # wheelsteer
             new_psi = diag_angle
         else:
-            new_psi = math.atan((new_axle[1] - new_kink[1]) / (new_axle[0] - new_kink[0]))
+            new_psi = math.atan((new_axle[1] - new_pivot[1]) / (new_axle[0] - new_pivot[0]))
 
         d_psi = (self.psi - new_psi) % math.pi
         ds = math.sqrt((self.axle[0] - new_axle[0])**2 + (self.axle[1] - new_axle[1])**2)
 
+        self.hitch = new_hitch
+        self.pivot = new_pivot
+        self.axle = new_axle
+
 
     def print(self):
-        print(self.hitch)
-        print(self.kink)
-        print(self.axle)
+        print("Trailer")
+        print(f'hitch: {r(self.hitch[0])}, {r(self.hitch[1])}')
+        print(f'pivot: {r(self.pivot[0])}, {r(self.pivot[1])}')
+        print(f'axle: {r(self.axle[0])}, {r(self.axle[1])}')
 
 if __name__ == "__main__":
-    t = Tractor(0.01)
-    s = Sprayer(t.hitch)
-    t.print()
-    s.print()
-    t.step(0 * math.pi / 180, 3)
-    s.step(0 * math.pi / 180, t.hitch)
-    t.print()
-    s.print()
-    pass
+    tractor = Tractor(0.01)
+    trailer = Trailer(tractor.hitch)
+    tractor.print()
+    trailer.print()
+
+    plt.xlim(-zoom, zoom)
+    plt.ylim(-zoom, zoom)
+    plt.grid()
+
+    plt.plot([tractor.front[0], tractor.rear[0]], [tractor.front[1], tractor.rear[1]], linestyle="-", color="red")
+    plt.plot([tractor.rear[0], tractor.hitch[0]], [tractor.rear[1], tractor.hitch[1]], linestyle="-", color="blue")
+    
+    
+    for i in range(n_steps):
+        tractor.step(v = 3, steering_angle = 15 * math.pi/180)
+        trailer.step(hitch = tractor.hitch, beta = 10 * math.pi / 180)
+        
+        if i % (n_steps / n_steps_shown) == 0:
+            plt.plot([tractor.front[0], tractor.rear[0]], [tractor.front[1], tractor.rear[1]], linestyle="-", color="red")
+            plt.plot([tractor.rear[0], tractor.hitch[0]], [tractor.rear[1], tractor.hitch[1]], linestyle="-", color="blue")
+
+            plt.plot([trailer.hitch[0], trailer.pivot[0]], [trailer.hitch[1], trailer.pivot[1]], linestyle="-", color="green")
+            plt.plot([trailer.pivot[0], trailer.axle[0]], [trailer.pivot[1], trailer.axle[1]], linestyle="-", color="magenta")
+    plt.show()
+    tractor.print()
+    trailer.print()
