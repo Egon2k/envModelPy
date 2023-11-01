@@ -7,8 +7,9 @@ L1 = 5
 L2 = 3
 L3 = 2
 
-n_steps = 1000
-n_steps_shown = 10
+dt = 0.01
+t_sim = 5
+n_steps_shown = 20
 zoom = 20
 
 def r(val):
@@ -127,30 +128,29 @@ class Trailer:
         print(f'pivot: {r(self.pivot[0])}, {r(self.pivot[1])}')
         print(f'axle: {r(self.axle[0])}, {r(self.axle[1])}')
 
-if __name__ == "__main__":
-    tractor = Tractor(0.01)
-    trailer = Trailer(tractor.hitch)
-    tractor.print()
-    trailer.print()
+def plot(tractor, trailer1):
+    plt.plot([tractor.front[0], tractor.rear[0]], [tractor.front[1], tractor.rear[1]], linestyle="-", color="red")
+    plt.plot([tractor.rear[0], tractor.hitch[0]], [tractor.rear[1], tractor.hitch[1]], linestyle="-", color="black")
+    plt.plot([trailer1.hitch[0], trailer1.pivot[0]], [trailer1.hitch[1], trailer1.pivot[1]], linestyle="-", color="green")
+    plt.plot([trailer1.pivot[0], trailer1.axle[0]], [trailer1.pivot[1], trailer1.axle[1]], linestyle="-", color="blue")
 
+if __name__ == "__main__":
+    tractor = Tractor(dt)
+    trailer1 = Trailer(tractor.hitch)
+   
     plt.xlim(-zoom, zoom)
     plt.ylim(-zoom, zoom)
     plt.grid()
+    plt.gca().set_aspect('equal')
 
-    plt.plot([tractor.front[0], tractor.rear[0]], [tractor.front[1], tractor.rear[1]], linestyle="-", color="red")
-    plt.plot([tractor.rear[0], tractor.hitch[0]], [tractor.rear[1], tractor.hitch[1]], linestyle="-", color="blue")
-    
+    n_steps = math.ceil(t_sim / dt)
     
     for i in range(n_steps):
-        tractor.step(v = 3, steering_angle = 15 * math.pi/180)
-        trailer.step(hitch = tractor.hitch, beta = 10 * math.pi / 180)
-        
         if i % (n_steps / n_steps_shown) == 0:
-            plt.plot([tractor.front[0], tractor.rear[0]], [tractor.front[1], tractor.rear[1]], linestyle="-", color="red")
-            plt.plot([tractor.rear[0], tractor.hitch[0]], [tractor.rear[1], tractor.hitch[1]], linestyle="-", color="blue")
+            plot(tractor, trailer1)
+    
+        tractor.step(v = 4, steering_angle = 15 * math.pi/180)
+        trailer1.step(hitch = tractor.hitch, beta = 10 * math.pi / 180)
 
-            plt.plot([trailer.hitch[0], trailer.pivot[0]], [trailer.hitch[1], trailer.pivot[1]], linestyle="-", color="green")
-            plt.plot([trailer.pivot[0], trailer.axle[0]], [trailer.pivot[1], trailer.axle[1]], linestyle="-", color="magenta")
     plt.show()
-    tractor.print()
-    trailer.print()
+    
